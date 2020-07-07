@@ -8,7 +8,7 @@ import Data.Maybe (fromJust)
 import Data.Time (Time(..), adjust)
 import Data.Time.Duration
 import Data.Traversable (scanr, scanl)
-import Data.Tuple (snd)
+import Data.Tuple (Tuple(..))
 
 import Effect (Effect)
 import Effect.Console (log)
@@ -21,8 +21,9 @@ main :: Effect Unit
 main = do
   let start9am = hhmm 9 0
   let talks = fromFoldable
-        [Detailed Talk { description: "Talk1", duration: (Minutes 20.0)},
-         Detailed Panel { description: "Panel", duration: (Minutes 40.0)}]
+        [Detailed Talk { description: "Talk1", duration: (Minutes 20.0)}
+        ,Detailed Panel { description: "Panel", duration: (Minutes 40.0)}
+        ,Detailed Talk { description: "Talk2", duration: (Minutes 20.0)}]
   log $ show $ schedule talks start9am
 
 data Segment = Window 
@@ -82,14 +83,20 @@ hhmm hh mm =
             ms  <- toEnum 0
             pure $ Time hh' mm' ss ms 
   in unsafePartial $ fromJust t
-  
-wrapTime :: forall a. (Detailed a) -> Time -> Scheduled a
-wrapTime d t = Scheduled d { startTime: t }
+
+wrapTime :: forall a. Detailed a -> Time -> Scheduled a
+wrapTime d st = Scheduled d { startTime: st }
+
+addTime :: forall a. Scheduled a -> Detailed a -> Scheduled a
+addTime l r = 
+  let d = duration l
+      lst = startTime l
+      Tuple _ rst = adjust d lst
+  in wrapTime r rst
 
 schedule :: forall a. List (Detailed a) -> Time -> List (Scheduled a)
 schedule ds st =
   case ds of 
     Nil -> Nil
     (d:ds') -> let init = wrapTime d st
-                   addTime l r = wrapTime r (snd $ adjust (duration l) (startTime l))
                in init : scanl addTime init ds'
